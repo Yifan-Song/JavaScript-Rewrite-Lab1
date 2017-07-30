@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Calculator</title>
+
+    <script>
+        const print = ';';
+        const number = '8';
+
+        function error(s)
+        {
+            throw s;
+        }
+
+        function isNum(i) {
+            if(i=="0"||i=="1"||i=="2"||i=="3"||i=="4"||i=="5"||i=="6"||i=="7"||i=="8"||i=="9")return true;
+            return false;
+        }
+
+        function stream()
+        {
+            this.str="";
+            this.index=0;
+            this.Set=Set;
+            this.getCh=getCh;
+            this.getDouble=getDouble;
+            this.putBackCh=putBackCh;
+            this.clear=clear;
+            function Set(str)
+            {
+                this.str=str;
+                this.index=0;
+            }
+            function getCh()
+            {
+                this.index++;
+                if (this.index<=this.str.length) {
+                    return this.str.substring(this.index - 1, this.index);
+                }
+                else return "";
+            }
+            function getDouble()
+            {
+                var counter=0;
+                var numStr="";
+                var firstCh=this.str.substring(this.index,this.index+1);
+                var secondCh=this.str.substring(this.index+1,this.index+2);
+                if(firstCh!="."&&!isNum(firstCh))return "";
+                if(firstCh=="."&&!isNum(secondCh))error("Too much '.'");
+                var tempStr
+                if(firstCh=="."&&isNum(secondCh)) {
+                    this.index--;
+                    numStr += "0";
+                    tempStr=this.str.substring(this.index+1,this.str.length);
+                }
+                else tempStr=this.str.substring(this.index,this.str.length);
+                for(var i in tempStr)
+                {
+                    var tempCh=tempStr[i];
+                    if(tempCh==".")
+                    {
+                        if (counter==1)
+                        {
+                            counter=0;
+                            break;
+                        }
+                        numStr+=tempCh;
+                        counter++;
+                    }
+                    else if(isNum(tempCh))
+                    {
+                        numStr+=tempCh;
+                    }
+                    else break;
+                }
+                this.index+=numStr.length;
+                return parseFloat(numStr);
+            }
+            function putBackCh() {
+                if(this.index==0)return;
+                this.index--;
+            }
+            function clear()
+            {
+                this.str="";
+                this.index=0;
+            }
+        }
+
+        inputStream=new stream();
+
+        function factorial(a) {
+            var result = 1;
+            if (a != parseInt(a))
+            {
+                error("'!' is limited to positive int");
+            }
+            if (a<0)
+            {
+                error("'!' is limited to positive int");
+            }
+            for (var i = 1;i < a + 1;i++)
+            {
+                result *= i;
+            }
+            if (a == 0)result = 1;
+            return result;
+        }
+
+        function MR()
+        {
+            this.full=false;
+            this.buffer=0;
+            this.In=In;
+            this.Out=Out;
+            function In(m)
+            {
+                this.buffer = m;
+                this.full = true;
+            }
+            function Out()
+            {
+                if(this.full)return this.buffer;
+                else error("Memory doesn't exist.");
+            }
+        }
+
+        mr=new MR();
+
+        function Token(ch,val)
+        {
+            this.kind=ch;
+            this.value=val;
+        }
+
+        function Token_stream()
+        {
+            this.full=false;
+            this.buffer=0;
+            this.putBack=putBack;
+            this.get=get;
+            this.clear=clear;
+            function clear()
+            {
+                this.full=false;
+                this.buffer=0;
+            }
+            function putBack(t)
+            {
+                this.buffer=t;
+                this.full=true;
+            }
+            function get()
+            {
+                if (this.full)
+                {
+                    this.full = false;
+                    return this.buffer;
+                }
+                var ch=inputStream.getCh();
+                switch (ch)
+                {
+                    case'R':
+                        return new Token(number, mr.Out());
+                    case';': {
+                        var nextCh = inputStream.getCh();
+                        if (nextCh != '') error("Bad token");
+                        else return new Token(';');
+                    }
+                    case'(':case')':case'+':case'-':case'*':case'/':case'%':case'!':case'M':
+                    return new Token(ch);
+                    case'.':case'0':case'1':case'2':case'3':case'4':case'5':case'6':case'7':case'8':case'9':
+                {
+                    inputStream.putBackCh();
+                    var val=inputStream.getDouble();
+                    token = new Token(number, val);
+                    var ch=inputStream.getCh();
+                    if(ch=='.')error("Too much '.'");
+                    else inputStream.putBackCh();
+                    return token;
+                }
+                    default:
+                        error("Bad token");
+                }
+            }
+        }
+
+        ts=new Token_stream();
+
+        function primary()
+        {
+            var t = ts.get();
+            switch (t.kind) {
+                case '(':
+                {
+                    var d = expression();
+                    var T = ts.get();
+                    if (T.kind != ')') {
+                        ts.putBack(T);
+                        error("')'expected");
+                    }
+                    var nextT = ts.get();
+                    if (nextT.kind != '!') {
+                        ts.putBack(nextT);
+                        return d;
+                    }
+                    else {
+                        var nextNextT = ts.get();
+                        if(nextNextT.kind == '!')throw("Too much '!'");
+                        else ts.putBack(nextNextT);
+                        return factorial(d);
+                    }
+                }
+                case number:
+                {
+                    var T = ts.get();
+                    if (T.kind != '!') {
+                        ts.putBack(T);
+                        return t.value;
+                    }
+                    else {
+                        var nextNextT = ts.get();
+                        if(nextNextT.kind == '!')throw("Too much '!'");
+                        else ts.putBack(nextNextT);
+                        return factorial(t.value);
+                    }
+                }
+                case'-':
+                    return -primary();
+                case'+':
+                    return primary();
+                default:
+                    ts.putBack(t);
+                    error("primary expected");
+            }
+        }
+
+        function term()
+        {
+            var left = primary();
+            var t = ts.get();
+            while (true) {
+                switch (t.kind) {
+                    case '*':
+                        left *= primary();
+                        t = ts.get();
+                        break;
+                    case '/':
+                    {
+                        var d = primary();
+                        if (d == 0)error("divide by zero");
+                        left /= d;
+                        t = ts.get();
+                        break;
+                    }
+                    case'%':
+                    {
+                        var d = primary();
+                        var i1 =  parseInt(left);
+                        if (i1 != left)error("left-hand operand of % not int");
+                        var i2 =  parseInt(d);
+                        if (i2 != d)error("right-hand operand of % not int");
+                        if (i2 == 0)error("%:divided by zero");
+                        left = i1%i2;
+                        t = ts.get();
+                        break;
+                    }
+                    default:
+                        ts.putBack(t);
+                        return left;
+                }
+            }
+        }
+
+        function expression()
+        {
+            var left = term();
+            var t = ts.get();
+            while (true) {
+                switch (t.kind) {
+                    case '+':
+                        left += term();
+                        t = ts.get();
+                        break;
+                    case '-':
+                        left -= term();
+                        t = ts.get();
+                        break;
+                    case'M':
+                        mr.In(left);
+                        t = ts.get();
+                        break;
+                    default:
+                        ts.putBack(t);
+                        return left;
+                }
+            }
+        }
+
+        function  calculate()
+        {
+            try {
+                var Result;
+                var input = document.getElementById("input").value;
+                if(input == "") {
+                    Result="结果：";
+                    document.getElementById("output").innerHTML=Result;
+                    return;
+                }
+                input+=";";
+                ts.clear();
+                inputStream.clear();
+                inputStream.Set(input);
+                var t = ts.get();
+                while (t.kind == print)t = ts.get();
+                ts.putBack(t);
+                Result="结果："+expression();
+                document.getElementById("output").innerHTML=Result;
+            }
+            catch (exception)
+            {
+                Result="结果：输入不合法，请修改后重试，错误类型："+exception;
+                document.getElementById("output").innerHTML=Result;
+            }
+        }
+
+    </script>
+
+</head>
+<body>
+
+<h1 style="text-align:center">Calculator</h1>
+<p style="text-align:center">输入：
+<input id="input" type="text">
+<button type="button" onclick="calculate()">=</button>
+</p>
+<p id="output" style="text-align:center">结果：
+</p>
+
+</body>
+</html>
